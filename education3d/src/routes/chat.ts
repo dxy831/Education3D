@@ -18,6 +18,8 @@ router.post('/chat', async (req: Request, res: Response) => {
   try {
     const { message, history = [], sceneMeta }: ChatRequest = req.body;
 
+    console.log('[Chat API] 收到请求:', { message, hasSceneMeta: !!sceneMeta });
+
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: '消息内容不能为空' });
     }

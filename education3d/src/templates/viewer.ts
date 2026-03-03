@@ -114,6 +114,7 @@ export function buildViewerHtml(sha256: string): string {
       border: 1px solid var(--code-border);
       border-radius: 12px;
       overflow: hidden;
+      flex-shrink: 0;
     }
     .section-header {
       padding: 12px 16px;
@@ -128,6 +129,10 @@ export function buildViewerHtml(sha256: string): string {
     }
     .section-body {
       padding: 16px;
+    }
+    .params-body-scroll {
+      max-height: 150px;
+      overflow-y: auto;
     }
     .param-row {
       margin-bottom: 12px;
@@ -247,6 +252,8 @@ export function buildViewerHtml(sha256: string): string {
       border: 1px solid var(--code-border);
       border-radius: 8px;
       padding: 16px;
+      max-height: 120px;
+      overflow-y: auto;
     }
     .step-title {
       font-size: 14px;
@@ -267,7 +274,8 @@ export function buildViewerHtml(sha256: string): string {
       overflow: hidden;
       display: none;
       flex-direction: column;
-      max-height: 300px;
+      max-height: 750px;
+      flex-shrink: 0;
     }
     .ai-console.visible {
       display: flex;
@@ -276,7 +284,7 @@ export function buildViewerHtml(sha256: string): string {
       flex: 1;
       overflow-y: auto;
       padding: 12px;
-      max-height: 200px;
+      max-height: 350px;
       background: var(--bg-main);
     }
     .ai-msg {
@@ -364,6 +372,53 @@ export function buildViewerHtml(sha256: string): string {
       font-size: 14px;
       color: var(--text-main);
     }
+    /* 自定义滚动条样式 */
+    .right-panel::-webkit-scrollbar,
+    .params-body-scroll::-webkit-scrollbar,
+    .step-info::-webkit-scrollbar,
+    .ai-messages::-webkit-scrollbar,
+    .code-block::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .right-panel::-webkit-scrollbar-track,
+    .params-body-scroll::-webkit-scrollbar-track,
+    .step-info::-webkit-scrollbar-track,
+    .ai-messages::-webkit-scrollbar-track,
+    .code-block::-webkit-scrollbar-track {
+      background: var(--concept-bg);
+      border-radius: 3px;
+    }
+    .right-panel::-webkit-scrollbar-thumb,
+    .params-body-scroll::-webkit-scrollbar-thumb,
+    .step-info::-webkit-scrollbar-thumb,
+    .ai-messages::-webkit-scrollbar-thumb,
+    .code-block::-webkit-scrollbar-thumb {
+      background: var(--title-main);
+      border-radius: 3px;
+    }
+    .right-panel::-webkit-scrollbar-thumb:hover,
+    .params-body-scroll::-webkit-scrollbar-thumb:hover,
+    .step-info::-webkit-scrollbar-thumb:hover,
+    .ai-messages::-webkit-scrollbar-thumb:hover,
+    .code-block::-webkit-scrollbar-thumb:hover {
+      background: #A07638;
+    }
+    /* 平滑滚动 */
+    .right-panel,
+    .params-body-scroll,
+    .step-info,
+    .ai-messages,
+    .code-block {
+      scroll-behavior: smooth;
+    }
+    /* header固定在顶部 */
+    .header {
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
   </style>
 </head>
 <body>
@@ -383,17 +438,9 @@ export function buildViewerHtml(sha256: string): string {
       </div>
       <div class="section" id="params-section">
         <div class="section-header">⚙️ 参数设置</div>
-        <div class="section-body" id="params-body">
+        <div class="section-body params-body-scroll" id="params-body">
           <div class="param-row">
             <label class="param-label">加载中...</label>
-          </div>
-        </div>
-      </div>
-      <div class="section" id="code-section">
-        <div class="section-header">💻 算法代码</div>
-        <div class="section-body">
-          <div class="code-block" id="code-block">
-            <span class="code-line">// 等待场景加载...</span>
           </div>
         </div>
       </div>
@@ -410,6 +457,14 @@ export function buildViewerHtml(sha256: string): string {
           <div class="progress-row">
             <span id="step-counter">0/0</span>
             <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="section" id="code-section">
+        <div class="section-header">💻 算法代码</div>
+        <div class="section-body">
+          <div class="code-block" id="code-block">
+            <span class="code-line">// 等待场景加载...</span>
           </div>
         </div>
       </div>
@@ -542,7 +597,14 @@ export function buildViewerHtml(sha256: string): string {
 
     function toggleAI() {
       isAIVisible = !isAIVisible;
-      document.getElementById('ai-console').classList.toggle('visible', isAIVisible);
+      const aiConsole = document.getElementById('ai-console');
+      aiConsole.classList.toggle('visible', isAIVisible);
+      if (isAIVisible) {
+        // 展开后平滑滚动到AI对话区域
+        setTimeout(() => {
+          aiConsole.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+      }
     }
 
     // 监听 iframe 消息
@@ -586,6 +648,12 @@ export function buildViewerHtml(sha256: string): string {
           sceneMeta: sceneMeta  // 传递当前场景的元数据
         })
       }).then(res => {
+        if (!res.ok) {
+          throw new Error('服务器响应错误: ' + res.status);
+        }
+        if (!res.body) {
+          throw new Error('响应体为空');
+        }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let fullResp = '';
